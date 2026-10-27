@@ -1,0 +1,1370 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>給与・手取り＆残業代シミュレーター</title>
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <!-- Chart.js CDN for visual breakdown -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <!-- Google Fonts Inter & Noto Sans JP -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Noto+Sans+JP:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Noto Sans JP"', 'Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar and smooth UI styles */
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+    input[type=number] {
+      -moz-appearance: textfield;
+    }
+    .custom-range {
+      accent-color: #4f46e5;
+    }
+    .tab-active {
+      border-bottom: 2px solid #4f46e5;
+      color: #4f46e5;
+      font-weight: 700;
+    }
+    body { background: #f8fafc; color: #1e293b; }
+    header.sticky { top: env(safe-area-inset-top, 0px); }
+  </style>
+</head>
+<body>
+<div class="bg-slate-50 text-slate-800 antialiased min-h-screen flex flex-col font-sans">
+
+  <!-- Toast Notification Container -->
+  <div id="toast" class="fixed top-5 right-5 z-50 transform transition-all duration-300 opacity-0 pointer-events-none translate-y-[-10px] bg-slate-900 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 text-sm font-medium">
+    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+    </svg>
+    <span id="toast-message">クリップボードにコピーしました</span>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-slate-900 leading-tight">手取り・給与＆残業代シミュレーター</h1>
+          <p class="text-xs text-slate-500">2026年最新基準・社会保険・所得税・住民税・残業制度対応</p>
+        </div>
+      </div>
+
+      <!-- Preset Quick Actions -->
+      <div class="hidden md:flex items-center gap-2">
+        <span class="text-xs text-slate-500 font-medium mr-1">年収クイック設定:</span>
+        <button onclick="setYearlyIncome(350)" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition">350万</button>
+        <button onclick="setYearlyIncome(500)" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition">500万</button>
+        <button onclick="setYearlyIncome(700)" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition">700万</button>
+        <button onclick="setYearlyIncome(1000)" class="px-2.5 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition">1000万</button>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 border-t border-slate-100">
+      <nav class="flex gap-8 overflow-x-auto no-scrollbar">
+        <button id="tab-btn-forward" onclick="switchTab('forward')" class="py-3 text-sm font-medium border-b-2 border-indigo-600 text-indigo-600 transition flex items-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+          年収から手取り計算 (順算)
+        </button>
+        <button id="tab-btn-reverse" onclick="switchTab('reverse')" class="py-3 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4"></path></svg>
+          手取り目標から逆算
+        </button>
+        <button id="tab-btn-overtime" onclick="switchTab('overtime')" class="py-3 text-sm font-medium border-b-2 border-transparent text-slate-600 hover:text-slate-900 transition flex items-center gap-2 whitespace-nowrap">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+          残業代・みなし残業の内訳計算
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-1 w-full">
+
+    <!-- ========================================== -->
+    <!-- TAB 1: 年収から手取り計算 (順算モード) -->
+    <!-- ========================================== -->
+    <div id="pane-forward" class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+      <!-- Input Column (Left: 5 cols) -->
+      <section class="lg:col-span-5 space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-5">
+            <span class="w-2 h-5 bg-indigo-600 rounded-full inline-block"></span>
+            収入・ボーナス条件
+          </h2>
+
+          <!-- Annual Income Input -->
+          <div class="space-y-2 mb-5">
+            <div class="flex justify-between items-center">
+              <label for="input-gross-income" class="text-sm font-semibold text-slate-700">額面年収</label>
+              <span id="label-monthly-gross" class="text-xs text-slate-500 font-medium">月額換算: 約 41.7 万円</span>
+            </div>
+            <div class="relative rounded-xl shadow-inner bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 flex items-center px-4 py-2.5">
+              <input type="number" id="input-gross-income" value="500" min="50" max="5000" step="10"
+                class="w-full bg-transparent font-bold text-xl text-slate-800 outline-none" oninput="recalculateForward()">
+              <span class="text-slate-500 font-semibold text-sm ml-2">万円</span>
+            </div>
+            <input type="range" id="range-gross-income" min="100" max="2000" step="10" value="500"
+              class="w-full custom-range mt-2 cursor-pointer" oninput="syncFromRange('gross', this.value)">
+          </div>
+
+          <!-- Bonus Breakdown Mode -->
+          <div class="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3 mb-5">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-semibold text-slate-700">賞与（ボーナス）の設定</label>
+              <select id="bonus-mode" onchange="toggleBonusMode()" class="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700 font-medium outline-none">
+                <option value="months">月給換算 (○ヶ月分)</option>
+                <option value="amount">年間ボーナス額面 (万円)</option>
+                <option value="none">賞与なし (年俸制/12分割)</option>
+              </select>
+            </div>
+
+            <!-- Bonus by Months -->
+            <div id="bonus-months-box" class="flex items-center justify-between gap-3">
+              <span class="text-xs text-slate-600 font-medium">年間賞与月数:</span>
+              <div class="flex items-center gap-2">
+                <input type="number" id="bonus-months" value="2.0" step="0.5" min="0" max="12"
+                  class="w-20 px-3 py-1.5 text-center font-bold text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500" oninput="recalculateForward()">
+                <span class="text-xs text-slate-500">ヶ月分</span>
+              </div>
+            </div>
+
+            <!-- Bonus by Fixed Amount -->
+            <div id="bonus-amount-box" class="hidden flex items-center justify-between gap-3">
+              <span class="text-xs text-slate-600 font-medium">年間賞与額面:</span>
+              <div class="flex items-center gap-2">
+                <input type="number" id="bonus-fixed-amount" value="80" step="5" min="0" max="2000"
+                  class="w-24 px-3 py-1.5 text-center font-bold text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500" oninput="recalculateForward()">
+                <span class="text-xs text-slate-500">万円</span>
+              </div>
+            </div>
+            <p id="bonus-note" class="text-xs text-slate-400">※ 通常は夏冬の年2回支給を前提として試算します</p>
+          </div>
+
+          <!-- Deductions & Attributes -->
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-4 pt-2 border-t border-slate-100">
+            <span class="w-2 h-5 bg-indigo-600 rounded-full inline-block"></span>
+            年齢・控除・家族構成
+          </h2>
+
+          <div class="space-y-4">
+            <!-- Age Group -->
+            <div>
+              <label class="text-sm font-semibold text-slate-700 block mb-2">年齢区分（介護保険料）</label>
+              <div class="grid grid-cols-2 gap-2">
+                <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-indigo-400 has-checked:border-indigo-600 has-checked:bg-indigo-50/40 transition">
+                  <input type="radio" name="age-group" value="under40" checked onchange="recalculateForward()" class="text-indigo-600">
+                  <span class="text-xs font-semibold text-slate-800">40歳未満<br><span class="text-[10px] text-slate-400 font-normal">介護保険料なし</span></span>
+                </label>
+                <label class="flex items-center gap-2 p-3 rounded-xl border border-slate-200 bg-white cursor-pointer hover:border-indigo-400 has-checked:border-indigo-600 has-checked:bg-indigo-50/40 transition">
+                  <input type="radio" name="age-group" value="over40" onchange="recalculateForward()" class="text-indigo-600">
+                  <span class="text-xs font-semibold text-slate-800">40歳〜64歳<br><span class="text-[10px] text-indigo-600 font-normal">介護保険料あり</span></span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Spouse Deduction -->
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <div>
+                <span class="text-sm font-semibold text-slate-700 block">配偶者控除</span>
+                <span class="text-xs text-slate-400">配偶者の年収が103万円以下</span>
+              </div>
+              <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" id="has-spouse" onchange="recalculateForward()" class="sr-only peer">
+                <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+              </label>
+            </div>
+
+            <!-- Dependents Count -->
+            <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+              <div>
+                <span class="text-sm font-semibold text-slate-700 block">扶養親族 (16歳以上)</span>
+                <span class="text-xs text-slate-400">高校生・大学生の子や親族</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button onclick="changeDependent(-1)" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100">-</button>
+                <span id="dep-count-label" class="font-bold text-sm w-6 text-center">0</span>
+                <button onclick="changeDependent(1)" class="w-8 h-8 rounded-lg bg-white border border-slate-200 text-slate-700 font-bold hover:bg-slate-100">+</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Results Column (Right: 7 cols) -->
+      <section class="lg:col-span-7 space-y-6">
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <!-- Annual Net -->
+          <div class="bg-gradient-to-br from-indigo-600 to-indigo-800 text-white p-6 rounded-2xl shadow-lg shadow-indigo-100 relative overflow-hidden">
+            <div class="absolute -right-4 -bottom-4 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs uppercase tracking-wider font-semibold text-indigo-200">年間手取り額</span>
+              <span id="badge-take-rate" class="px-2 py-0.5 text-[11px] font-bold bg-white/20 rounded-full">手取り率 約 77%</span>
+            </div>
+            <div class="flex items-baseline gap-1 my-2">
+              <span id="res-net-yearly" class="text-3xl sm:text-4xl font-extrabold tracking-tight">386.4</span>
+              <span class="text-lg font-bold">万円</span>
+            </div>
+            <p id="res-net-yearly-diff" class="text-xs text-indigo-200">額面から約 113.6 万円が控除されます</p>
+          </div>
+
+          <!-- Monthly Net -->
+          <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm relative">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs uppercase tracking-wider font-semibold text-slate-500">月の手取り平均</span>
+              <button onclick="copySummaryText()" class="text-xs text-indigo-600 hover:text-indigo-800 font-semibold flex items-center gap-1">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+                結果をコピー
+              </button>
+            </div>
+            <div class="flex items-baseline gap-1 my-2">
+              <span id="res-net-monthly" class="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">27.6</span>
+              <span class="text-lg font-bold text-slate-700">万円</span>
+            </div>
+            <div id="bonus-net-subtext" class="text-xs text-slate-500">
+              賞与手取り(1回あたり): <span id="res-net-bonus" class="font-bold text-slate-700">27.6 万円</span> (年2回)
+            </div>
+          </div>
+        </div>
+
+        <!-- Breakdown Chart & Detail Table -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+          <h3 class="text-base font-bold text-slate-900 flex items-center justify-between">
+            <span>年間の給与内訳・控除詳細</span>
+            <span class="text-xs text-slate-400 font-normal">単位: 万円/年</span>
+          </h3>
+
+          <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+            <!-- Donut Chart Container -->
+            <div class="md:col-span-5 flex flex-col items-center justify-center">
+              <div class="relative w-48 h-48 sm:w-52 sm:h-52">
+                <canvas id="deductionChart"></canvas>
+                <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span class="text-xs text-slate-400 font-medium">手取り比率</span>
+                  <span id="chart-center-percent" class="text-xl font-black text-slate-800">77.3%</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Breakdown Legend & Detail Numbers -->
+            <div class="md:col-span-7 space-y-3">
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-indigo-50/60 border border-indigo-100">
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full bg-indigo-600 inline-block"></span>
+                  <span class="text-xs font-bold text-indigo-950">手取り支給額</span>
+                </div>
+                <div class="text-right">
+                  <span id="detail-net" class="font-extrabold text-sm text-indigo-900">386.4 万円</span>
+                  <span id="pct-net" class="text-[11px] text-indigo-500 block">77.3%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-amber-50/60 border border-amber-100">
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
+                  <div>
+                    <span class="text-xs font-bold text-amber-950">社会保険料 合計</span>
+                    <span class="text-[10px] text-slate-400 block">健康・年金・雇用・介護</span>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span id="detail-social" class="font-extrabold text-sm text-amber-900">74.2 万円</span>
+                  <span id="pct-social" class="text-[11px] text-amber-600 block">14.8%</span>
+                </div>
+              </div>
+
+              <div class="flex items-center justify-between p-2.5 rounded-xl bg-rose-50/60 border border-rose-100">
+                <div class="flex items-center gap-2">
+                  <span class="w-3 h-3 rounded-full bg-rose-500 inline-block"></span>
+                  <div>
+                    <span class="text-xs font-bold text-rose-950">税金 合計</span>
+                    <span class="text-[10px] text-slate-400 block">所得税 ＋ 住民税</span>
+                  </div>
+                </div>
+                <div class="text-right">
+                  <span id="detail-tax" class="font-extrabold text-sm text-rose-900">39.4 万円</span>
+                  <span id="pct-tax" class="text-[11px] text-rose-600 block">7.9%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Micro Breakdown Accordion -->
+          <div class="border-t border-slate-100 pt-4">
+            <details class="group cursor-pointer">
+              <summary class="flex items-center justify-between text-xs font-semibold text-slate-500 hover:text-slate-800 select-none">
+                <span>社会保険・税金の詳細な内訳を見る</span>
+                <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+              </summary>
+              <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                <div class="p-2.5 bg-slate-50 rounded-lg">
+                  <span class="text-slate-500 block">健康保険料</span>
+                  <span id="sub-health" class="font-bold text-slate-800">25.0 万円</span>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-lg">
+                  <span class="text-slate-500 block">厚生年金</span>
+                  <span id="sub-pension" class="font-bold text-slate-800">45.7 万円</span>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-lg">
+                  <span class="text-slate-500 block">雇用保険</span>
+                  <span id="sub-emp" class="font-bold text-slate-800">3.0 万円</span>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-lg">
+                  <span class="text-slate-500 block">介護保険 (40歳〜)</span>
+                  <span id="sub-care" class="font-bold text-slate-800">0.0 万円</span>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-lg">
+                  <span class="text-slate-500 block">所得税 (国税)</span>
+                  <span id="sub-income-tax" class="font-bold text-slate-800">14.2 万円</span>
+                </div>
+                <div class="p-2.5 bg-slate-50 rounded-lg">
+                  <span class="text-slate-500 block">住民税 (地方税)</span>
+                  <span id="sub-resident-tax" class="font-bold text-slate-800">25.2 万円</span>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 2: 手取り目標からの逆算モード -->
+    <!-- ========================================== -->
+    <div id="pane-reverse" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+      <!-- Reverse Input Column (Left: 5 cols) -->
+      <section class="lg:col-span-5 space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-2 mb-5">
+            <span class="w-2 h-5 bg-indigo-600 rounded-full inline-block"></span>
+            希望する手取り額
+          </h2>
+
+          <!-- Mode Switch (Monthly or Annual) -->
+          <div class="flex p-1 bg-slate-100 rounded-xl mb-5">
+            <button id="rev-type-monthly" onclick="setReverseType('monthly')" class="flex-1 py-2 text-xs font-bold rounded-lg bg-white text-indigo-600 shadow-xs">月額手取りから計算</button>
+            <button id="rev-type-yearly" onclick="setReverseType('yearly')" class="flex-1 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900">年間手取りから計算</button>
+          </div>
+
+          <!-- Reverse Input Box -->
+          <div class="space-y-2 mb-5">
+            <label id="label-rev-target" for="input-target-net" class="text-sm font-semibold text-slate-700">目標の月額手取り</label>
+            <div class="relative rounded-xl shadow-inner bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 flex items-center px-4 py-2.5">
+              <input type="number" id="input-target-net" value="30" min="10" max="200" step="1"
+                class="w-full bg-transparent font-bold text-xl text-slate-800 outline-none" oninput="recalculateReverse()">
+              <span class="text-slate-500 font-semibold text-sm ml-2">万円</span>
+            </div>
+            <!-- Range slider for reverse -->
+            <input type="range" id="range-target-net" min="10" max="100" step="1" value="30"
+              class="w-full custom-range mt-2 cursor-pointer" oninput="syncFromRange('rev', this.value)">
+          </div>
+
+          <!-- Bonus ratio assumed for reverse -->
+          <div class="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3 mb-4">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-700">想定する賞与(ボーナス)</span>
+              <select id="rev-bonus-months" onchange="recalculateReverse()" class="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700 font-medium outline-none">
+                <option value="0">賞与なし (年俸12分割)</option>
+                <option value="1">1ヶ月分/年</option>
+                <option value="2" selected>2ヶ月分/年 (標準)</option>
+                <option value="3">3ヶ月分/年</option>
+                <option value="4">4ヶ月分/年 (多め)</option>
+              </select>
+            </div>
+            <p class="text-[11px] text-slate-400">※賞与がある場合、月々の必要額面は抑えられます。</p>
+          </div>
+
+          <!-- Reverse conditions (Age & Dependents mirror) -->
+          <div class="space-y-3 pt-3 border-t border-slate-100">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-700">40歳以上 (介護保険)</span>
+              <input type="checkbox" id="rev-over40" onchange="recalculateReverse()" class="w-4 h-4 text-indigo-600 rounded">
+            </div>
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-semibold text-slate-700">扶養親族・配偶者</span>
+              <select id="rev-dependents-tier" onchange="recalculateReverse()" class="text-xs bg-white border border-slate-200 rounded-lg px-2 py-1 text-slate-700">
+                <option value="0">独身・扶養なし</option>
+                <option value="1">配偶者あり (1人)</option>
+                <option value="2">配偶者 ＋ 子1人 (2人)</option>
+                <option value="3">配偶者 ＋ 子2人 (3人)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Reverse Output Column (Right: 7 cols) -->
+      <section class="lg:col-span-7 space-y-6">
+        <div class="bg-gradient-to-br from-slate-900 to-indigo-950 text-white p-7 rounded-2xl shadow-xl space-y-6 relative overflow-hidden">
+          <div class="absolute -right-8 -bottom-8 w-48 h-48 bg-indigo-500/10 rounded-full blur-2xl pointer-events-none"></div>
+
+          <div>
+            <span class="text-xs uppercase tracking-wider font-bold text-indigo-400">必要となる額面年収</span>
+            <div class="flex items-baseline gap-2 mt-1">
+              <span id="rev-result-gross-year" class="text-4xl sm:text-5xl font-extrabold tracking-tight text-white">482</span>
+              <span class="text-xl font-bold text-indigo-200">万円 / 年</span>
+            </div>
+            <p id="rev-result-desc" class="text-xs text-slate-300 mt-2">
+              希望の手取り<span id="rev-result-target-label">月額</span> <span id="rev-result-target" class="font-bold text-white">30 万円</span> を得るには、額面月給で約 <span id="rev-result-gross-month" class="font-bold text-white">34.4 万円</span> が必要です。
+            </p>
+          </div>
+
+          <!-- Comparison Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 border-t border-slate-800 pt-5">
+            <div class="p-3 bg-white/5 rounded-xl border border-white/10">
+              <span class="text-[11px] text-slate-400 block font-medium">必要月給 (額面)</span>
+              <span id="rev-box-monthly-gross" class="text-lg font-bold text-white">34.4 万円</span>
+            </div>
+            <div class="p-3 bg-white/5 rounded-xl border border-white/10">
+              <span class="text-[11px] text-slate-400 block font-medium">想定賞与 (額面/年)</span>
+              <span id="rev-box-bonus-gross" class="text-lg font-bold text-white">68.8 万円</span>
+            </div>
+            <div class="p-3 bg-white/5 rounded-xl border border-white/10 col-span-2 sm:col-span-1">
+              <span class="text-[11px] text-slate-400 block font-medium">年間控除総額 (概算)</span>
+              <span id="rev-box-deductions" class="text-lg font-bold text-amber-300">122 万円</span>
+            </div>
+          </div>
+
+          <!-- Strategy Advice -->
+          <div class="bg-indigo-900/40 border border-indigo-500/30 rounded-xl p-4 text-xs text-indigo-200 leading-relaxed">
+            💡 <strong class="text-white">転職や年収交渉の目安:</strong> 手取り希望額を実現するためには、手取り額の約 <span id="rev-advice-ratio" class="font-bold text-white">1.25倍〜1.35倍</span> の額面提示を目安に交渉すると手取り不足のミスマッチを防げます。
+          </div>
+        </div>
+
+        <!-- Quick Target Milestones -->
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-3">
+          <h3 class="text-sm font-bold text-slate-800">よくある手取り目標早見表</h3>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+            <button onclick="setTargetNet(20)" class="p-3 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/30 transition text-left">
+              <span class="text-xs text-slate-500 block">月手取り 20万</span>
+              <span id="milestone-20" class="font-bold text-slate-800 text-sm">年収 約310万</span>
+            </button>
+            <button onclick="setTargetNet(25)" class="p-3 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/30 transition text-left">
+              <span class="text-xs text-slate-500 block">月手取り 25万</span>
+              <span id="milestone-25" class="font-bold text-slate-800 text-sm">年収 約390万</span>
+            </button>
+            <button onclick="setTargetNet(30)" class="p-3 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/30 transition text-left">
+              <span class="text-xs text-slate-500 block">月手取り 30万</span>
+              <span id="milestone-30" class="font-bold text-slate-800 text-sm">年収 約480万</span>
+            </button>
+            <button onclick="setTargetNet(40)" class="p-3 rounded-xl border border-slate-200 hover:border-indigo-500 hover:bg-indigo-50/30 transition text-left">
+              <span class="text-xs text-slate-500 block">月手取り 40万</span>
+              <span id="milestone-40" class="font-bold text-slate-800 text-sm">年収 約670万</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- TAB 3: 残業代・みなし残業 (固定残業代) 内訳計算 -->
+    <!-- ========================================== -->
+    <div id="pane-overtime" class="hidden grid grid-cols-1 lg:grid-cols-12 gap-8">
+
+      <!-- Overtime Inputs Column (Left: 5 cols) -->
+      <section class="lg:col-span-5 space-y-6">
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-5">
+          <h2 class="text-base font-bold text-slate-900 flex items-center gap-2">
+            <span class="w-2 h-5 bg-indigo-600 rounded-full inline-block"></span>
+            残業制度の選択
+          </h2>
+
+          <!-- Overtime System Switch -->
+          <div class="grid grid-cols-2 gap-2">
+            <button id="ot-mode-fixed" onclick="setOvertimeMode('fixed')" class="p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 text-indigo-700 font-bold text-xs flex flex-col items-center gap-1">
+              <span>固定残業代 (みなし残業)</span>
+              <span class="text-[10px] font-normal text-slate-500">内訳の基本給・残業代を分解</span>
+            </button>
+            <button id="ot-mode-actual" onclick="setOvertimeMode('actual')" class="p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs flex flex-col items-center gap-1">
+              <span>普通残業 (1分単位〜)</span>
+              <span class="text-[10px] font-normal text-slate-500">実残業時間から手当を加算</span>
+            </button>
+          </div>
+
+          <!-- Common Setting: Monthly Scheduled Working Hours -->
+          <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
+            <div>
+              <span class="text-xs font-bold text-slate-700 block">月平均所定労働時間</span>
+              <span class="text-[10px] text-slate-400">一般的な所定労働は160時間(8h×20日)</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <input type="number" id="ot-base-hours" value="160" min="120" max="200" step="1"
+                class="w-16 px-2 py-1 text-center font-bold text-xs bg-white border border-slate-300 rounded-lg" oninput="recalculateOvertime()">
+              <span class="text-xs text-slate-500">時間</span>
+            </div>
+          </div>
+
+          <!-- SECTION A: Fixed Overtime Inputs -->
+          <div id="ot-section-fixed" class="space-y-4">
+            <!-- Total Monthly Salary (including fixed OT) -->
+            <div>
+              <label for="ot-fixed-total-salary" class="text-xs font-bold text-slate-700 block mb-1">
+                総支給額（月給・みなし残業込み）
+              </label>
+              <div class="relative rounded-xl shadow-inner bg-slate-50 border border-slate-200 focus-within:border-indigo-500 flex items-center px-3 py-2">
+                <input type="number" id="ot-fixed-total-salary" value="35" min="15" max="150" step="1"
+                  class="w-full bg-transparent font-bold text-lg text-slate-800 outline-none" oninput="recalculateOvertime()">
+                <span class="text-slate-500 font-bold text-xs ml-2">万円/月</span>
+              </div>
+            </div>
+
+            <!-- Fixed Hours Included -->
+            <div>
+              <div class="flex justify-between items-center mb-1">
+                <label for="ot-fixed-hours" class="text-xs font-bold text-slate-700">給与に含まれる固定残業時間</label>
+                <span id="label-fixed-hours-val" class="text-xs font-bold text-indigo-600">30 時間</span>
+              </div>
+              <input type="range" id="ot-fixed-hours" min="5" max="60" step="5" value="30"
+                class="w-full custom-range cursor-pointer" oninput="syncFixedHours(this.value)">
+              <!-- 目盛り: スライダー(5〜60時間)の実際の位置に合わせて配置。つまみ幅(約16px)分を補正 -->
+              <div class="relative h-4 text-[10px] text-slate-400 mt-1">
+                <span class="absolute -translate-x-1/2 whitespace-nowrap" style="left: calc(9.09% + 6.55px)">10時間</span>
+                <span class="absolute -translate-x-1/2 whitespace-nowrap" style="left: calc(27.27% + 3.64px)">20時間</span>
+                <span class="absolute -translate-x-1/2 whitespace-nowrap" style="left: calc(45.45% + 0.73px)">30時間</span>
+                <span class="absolute -translate-x-1/2 whitespace-nowrap" style="left: calc(72.73% - 3.64px)">45時間</span>
+                <span class="absolute right-0 whitespace-nowrap">60時間</span>
+              </div>
+            </div>
+
+            <!-- Actual Worked Hours (Simulate Overtime Exceeding Fixed) -->
+            <div class="p-3 bg-indigo-50/50 rounded-xl border border-indigo-100 space-y-2">
+              <div class="flex justify-between items-center">
+                <span class="text-xs font-bold text-indigo-900">もし実際の残業が超過した場合:</span>
+                <span id="label-exceed-val" class="text-xs font-bold text-indigo-700">月 35 時間実働</span>
+              </div>
+              <input type="range" id="ot-fixed-actual-worked" min="0" max="80" step="1" value="35"
+                class="w-full custom-range cursor-pointer" oninput="recalculateOvertime()">
+              <span class="text-[10px] text-indigo-600 block">※固定時間を超えた分は追加残業代として支払われます</span>
+            </div>
+          </div>
+
+          <!-- SECTION B: Regular Overtime Inputs -->
+          <div id="ot-section-actual" class="hidden space-y-4">
+            <!-- Base Salary -->
+            <div>
+              <label for="ot-actual-base-salary" class="text-xs font-bold text-slate-700 block mb-1">
+                基本給（残業手当除く）
+              </label>
+              <div class="relative rounded-xl shadow-inner bg-slate-50 border border-slate-200 focus-within:border-indigo-500 flex items-center px-3 py-2">
+                <input type="number" id="ot-actual-base-salary" value="28" min="10" max="150" step="1"
+                  class="w-full bg-transparent font-bold text-lg text-slate-800 outline-none" oninput="recalculateOvertime()">
+                <span class="text-slate-500 font-bold text-xs ml-2">万円/月</span>
+              </div>
+            </div>
+
+            <!-- Actual Monthly Overtime (Hours + Minutes) -->
+            <div class="space-y-2">
+              <label class="text-xs font-bold text-slate-700 block">月の残業時間 (1分単位対応)</label>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                  <input type="number" id="ot-reg-hours" value="25" min="0" max="120" step="1"
+                    class="w-full bg-transparent font-bold text-sm text-center outline-none" oninput="recalculateOvertime()">
+                  <span class="text-xs text-slate-500 font-medium">時間</span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                  <input type="number" id="ot-reg-minutes" value="30" min="0" max="59" step="1"
+                    class="w-full bg-transparent font-bold text-sm text-center outline-none" oninput="recalculateOvertime()">
+                  <span class="text-xs text-slate-500 font-medium">分</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Overtime Outputs Column (Right: 7 cols) -->
+      <section class="lg:col-span-7 space-y-6">
+
+        <!-- Output Card: Fixed OT Breakdown -->
+        <div id="ot-result-fixed-box" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+            <div>
+              <span class="text-xs uppercase tracking-wider font-bold text-slate-500">固定残業代の内訳分解</span>
+              <h3 class="text-lg font-bold text-slate-900">月給 <span id="ot-res-display-total" class="text-indigo-600">35.0</span> 万円の内訳</h3>
+            </div>
+            <div class="text-right">
+              <span class="text-[11px] text-slate-400 block font-medium">実質時間単価 (基本給換算)</span>
+              <span id="ot-res-hourly-rate" class="font-extrabold text-sm text-slate-800">1,768 円/時</span>
+            </div>
+          </div>
+
+          <!-- Stacked Bar Visual -->
+          <div class="space-y-2">
+            <div class="h-6 w-full bg-slate-100 rounded-full overflow-hidden flex shadow-inner">
+              <div id="bar-base" class="h-full bg-indigo-600 transition-all duration-300" style="width: 81%"></div>
+              <div id="bar-fixed" class="h-full bg-amber-400 transition-all duration-300" style="width: 19%"></div>
+            </div>
+            <div class="flex justify-between text-xs font-semibold px-1">
+              <span class="flex items-center gap-1.5 text-indigo-700">
+                <span class="w-2.5 h-2.5 rounded-full bg-indigo-600 inline-block"></span>
+                基本給: <strong id="ot-res-base-val">28.3 万円</strong> (<span id="ot-res-base-pct">80.9%</span>)
+              </span>
+              <span class="flex items-center gap-1.5 text-amber-700">
+                <span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>
+                固定残業代: <strong id="ot-res-fixed-val">6.7 万円</strong> (<span id="ot-res-fixed-pct">19.1%</span>)
+              </span>
+            </div>
+          </div>
+
+          <!-- Overtime Calculation Explanation Card -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+              <span class="text-xs text-slate-500 block mb-0.5">残業割増単価 (1.25倍)</span>
+              <span id="ot-res-overtime-rate" class="text-base font-extrabold text-slate-800">2,210 円/時</span>
+              <span class="text-[10px] text-slate-400 block mt-0.5">1分あたり 約 <span id="ot-res-minute-rate">36.8</span> 円</span>
+            </div>
+            <div class="p-3.5 bg-slate-50 rounded-xl border border-slate-100">
+              <span class="text-xs text-slate-500 block mb-0.5">超過残業手当 (追加支給額)</span>
+              <span id="ot-res-exceed-allowance" class="text-base font-extrabold text-emerald-600">＋1.1 万円</span>
+              <span id="ot-res-exceed-sub" class="text-[10px] text-slate-400 block mt-0.5">固定時間を 5 時間超過</span>
+            </div>
+          </div>
+
+          <!-- Total Payout with Excess Overtime -->
+          <div class="p-4 bg-indigo-50/70 border border-indigo-100 rounded-xl flex items-center justify-between">
+            <div>
+              <span class="text-xs font-bold text-indigo-950 block">超過残業を含めた今月の総支給額</span>
+              <span class="text-[11px] text-indigo-600">基本給 ＋ 固定残業代 ＋ 超過残業手当</span>
+            </div>
+            <span id="ot-res-grand-total" class="text-2xl font-black text-indigo-900">36.1 万円</span>
+          </div>
+        </div>
+
+        <!-- Output Card: Regular Overtime Calculation -->
+        <div id="ot-result-actual-box" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+          <div class="border-b border-slate-100 pb-4">
+            <span class="text-xs uppercase tracking-wider font-bold text-slate-500">普通残業手当の試算結果</span>
+            <h3 class="text-lg font-bold text-slate-900">今月の残業手当: <span id="reg-res-allowance" class="text-indigo-600">5.6 万円</span></h3>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            <div class="p-3 bg-slate-50 rounded-xl">
+              <span class="text-xs text-slate-500 block">基礎時給</span>
+              <span id="reg-res-hour-rate" class="text-base font-bold text-slate-800">1,750 円</span>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl">
+              <span class="text-xs text-slate-500 block">割増時給(1.25倍)</span>
+              <span id="reg-res-ot-rate" class="text-base font-bold text-slate-800">2,188 円</span>
+            </div>
+            <div class="p-3 bg-slate-50 rounded-xl col-span-2 sm:col-span-1">
+              <span class="text-xs text-slate-500 block">1分あたりの単価</span>
+              <span id="reg-res-min-rate" class="text-base font-bold text-indigo-600">36.5 円/分</span>
+            </div>
+          </div>
+
+          <!-- Monthly Gross with OT and Net Impact -->
+          <div class="space-y-3 pt-2">
+            <div class="p-4 bg-slate-900 text-white rounded-xl flex items-center justify-between">
+              <div>
+                <span class="text-xs text-slate-400 block">残業込み月額総支給 (額面)</span>
+                <span class="text-xs text-slate-300">基本給 + 実残業手当</span>
+              </div>
+              <span id="reg-res-total-gross" class="text-2xl font-bold text-white">33.6 万円</span>
+            </div>
+            <div class="p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-emerald-950">
+              <span class="text-xs font-semibold">この残業代による手取り増加見込み (約80%換算)</span>
+              <span id="reg-res-net-gain" class="font-bold text-sm text-emerald-700">約 ＋4.5 万円</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Labor Standards Quick Reference -->
+        <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 text-xs text-slate-600 space-y-2">
+          <div class="font-bold text-slate-800 flex items-center gap-1.5">
+            <svg class="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            知っておきたい残業代の豆知識
+          </div>
+          <p class="leading-relaxed">
+            ・固定残業代制であっても、設定された固定残業時間を1分でも超えた場合は会社側に追加の割増賃金支払い義務が生じます。<br>
+            ・固定残業代を引いた「基本給」が都道府県の地域別最低賃金を下回っている場合は違法（無効）となります。
+          </p>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400">
+    <div class="max-w-7xl mx-auto px-4">
+      <p>※ 本シミュレーション結果は、令和8年（2026年）時点の一般的な社会保険料率（協会けんぽ東京支部目安・厚生年金・雇用保険）および所得税・住民税制に基づく概算です。居住自治体、扶養親族の詳細、各種所得控除等により実際の受給額とは若干異なる場合があります。</p>
+    </div>
+  </footer>
+
+  <!-- JavaScript Logic -->
+  <script>
+    // Global Application State
+    let state = {
+      grossIncome: 500, // 万円
+      bonusMode: 'months', // 'months', 'amount', 'none'
+      bonusMonths: 2.0,
+      bonusAmount: 80, // 万円
+      ageGroup: 'under40', // 'under40' or 'over40'
+      hasSpouse: false,
+      dependentsCount: 0,
+      activeTab: 'forward',
+
+      // Reverse Calculation State
+      reverseType: 'monthly', // 'monthly' or 'yearly'
+      targetNet: 30, // 万円
+      revBonusMonths: 2.0,
+      revOver40: false,
+      revDependentsTier: 0,
+
+      // Overtime State
+      otMode: 'fixed', // 'fixed' or 'actual'
+      baseScheduledHours: 160,
+      fixedTotalSalary: 35, // 万円
+      fixedHours: 30,
+      fixedActualWorked: 35,
+      actualBaseSalary: 28, // 万円
+      regHours: 25,
+      regMinutes: 30,
+    };
+
+    let deductionChart = null;
+
+    /**
+     * 日本の給与所得における社会保険・税金の手取り概算エンジン
+     * @param {number} gross 額面年収（万円）
+     * @param {boolean} isOver40 介護保険加入フラグ
+     * @param {boolean} hasSpouse 配偶者控除
+     * @param {number} depCount 16歳以上の扶養親族数
+     * @returns {Object} 詳細内訳（全て万円単位）
+     */
+    function computeNetSalary(gross, isOver40, hasSpouse, depCount) {
+      if (gross <= 0) {
+        return {
+          gross: 0,
+          net: 0,
+          socialTotal: 0,
+          taxTotal: 0,
+          health: 0,
+          pension: 0,
+          employment: 0,
+          care: 0,
+          incomeTax: 0,
+          residentTax: 0,
+          takeHomeRate: 0
+        };
+      }
+
+      const grossYen = gross * 10000;
+
+      // 1. 社会保険料（概算）
+      // 健康保険（協会けんぽ東京 折半率 約 4.99%）
+      const healthRate = 0.0499;
+      // 厚生年金（本人負担 9.15%、上限標準報酬月額65万円考慮）
+      const pensionRate = 0.0915;
+      const pensionCappedGrossYen = Math.min(grossYen, 650000 * 12 + 1500000 * 3);
+      // 雇用保険（本人負担 0.6%）
+      const empRate = 0.006;
+      // 介護保険（40歳〜64歳 本人負担 約 0.8%）
+      const careRate = isOver40 ? 0.008 : 0.0;
+
+      const healthYen = grossYen * healthRate;
+      const pensionYen = pensionCappedGrossYen * pensionRate;
+      const empYen = grossYen * empRate;
+      const careYen = grossYen * careRate;
+      const socialTotalYen = healthYen + pensionYen + empYen + careYen;
+
+      // 2. 給与所得控除
+      let salaryDeductionYen = 0;
+      if (grossYen <= 1625000) {
+        salaryDeductionYen = 550000;
+      } else if (grossYen <= 1800000) {
+        salaryDeductionYen = grossYen * 0.40 - 100000;
+      } else if (grossYen <= 3600000) {
+        salaryDeductionYen = grossYen * 0.30 + 80000;
+      } else if (grossYen <= 6600000) {
+        salaryDeductionYen = grossYen * 0.20 + 440000;
+      } else if (grossYen <= 8500000) {
+        salaryDeductionYen = grossYen * 0.10 + 1100000;
+      } else {
+        salaryDeductionYen = 1950000; // 上限
+      }
+
+      // 給与所得金額
+      const earnedIncomeYen = Math.max(0, grossYen - salaryDeductionYen);
+
+      // 3. 人的控除
+      // 基礎控除: 所得税48万円、住民税43万円
+      const baseDeductionIT = 480000;
+      const baseDeductionRT = 430000;
+
+      // 配偶者控除: 所得税38万円、住民税33万円
+      const spouseDeductionIT = hasSpouse ? 380000 : 0;
+      const spouseDeductionRT = hasSpouse ? 330000 : 0;
+
+      // 扶養控除（一般16歳以上）: 1人あたり所得税38万、住民税33万
+      const depDeductionIT = depCount * 380000;
+      const depDeductionRT = depCount * 330000;
+
+      // 所得税 課税所得
+      const taxableIncomeIT = Math.max(0, earnedIncomeYen - socialTotalYen - baseDeductionIT - spouseDeductionIT - depDeductionIT);
+      // 住民税 課税所得
+      const taxableIncomeRT = Math.max(0, earnedIncomeYen - socialTotalYen - baseDeductionRT - spouseDeductionRT - depDeductionRT);
+
+      // 4. 所得税の算出（超過累進税率 + 復興特別所得税2.1%）
+      let itBase = 0;
+      if (taxableIncomeIT <= 1950000) {
+        itBase = taxableIncomeIT * 0.05;
+      } else if (taxableIncomeIT <= 3300000) {
+        itBase = taxableIncomeIT * 0.10 - 97500;
+      } else if (taxableIncomeIT <= 6950000) {
+        itBase = taxableIncomeIT * 0.20 - 427500;
+      } else if (taxableIncomeIT <= 9000000) {
+        itBase = taxableIncomeIT * 0.23 - 636000;
+      } else if (taxableIncomeIT <= 18000000) {
+        itBase = taxableIncomeIT * 0.33 - 1536000;
+      } else if (taxableIncomeIT <= 40000000) {
+        itBase = taxableIncomeIT * 0.40 - 2796000;
+      } else {
+        itBase = taxableIncomeIT * 0.45 - 4796000;
+      }
+      itBase = Math.max(0, itBase);
+      const incomeTaxYen = itBase * 1.021; // 復興特別所得税を加算
+
+      // 5. 住民税の算出（所得割10% ＋ 均等割約5000円）
+      let residentTaxYen = 0;
+      if (taxableIncomeRT > 0) {
+        residentTaxYen = taxableIncomeRT * 0.10 + 5000;
+      }
+
+      const taxTotalYen = incomeTaxYen + residentTaxYen;
+      const netYen = Math.max(0, grossYen - socialTotalYen - taxTotalYen);
+
+      return {
+        gross: gross,
+        net: netYen / 10000,
+        socialTotal: socialTotalYen / 10000,
+        taxTotal: taxTotalYen / 10000,
+        health: healthYen / 10000,
+        pension: pensionYen / 10000,
+        employment: empYen / 10000,
+        care: careYen / 10000,
+        incomeTax: incomeTaxYen / 10000,
+        residentTax: residentTaxYen / 10000,
+        takeHomeRate: (netYen / grossYen) * 100
+      };
+    }
+
+    /**
+     * 順算モードの再計算と画面反映
+     */
+    function recalculateForward() {
+      // ユーザー入力の取得
+      const gross = parseFloat(document.getElementById('input-gross-income').value) || 0;
+      state.grossIncome = gross;
+      state.bonusMode = document.getElementById('bonus-mode').value;
+      state.bonusMonths = parseFloat(document.getElementById('bonus-months').value) || 0;
+      state.bonusAmount = parseFloat(document.getElementById('bonus-fixed-amount').value) || 0;
+      state.ageGroup = document.querySelector('input[name="age-group"]:checked').value;
+      state.hasSpouse = document.getElementById('has-spouse').checked;
+
+      const isOver40 = state.ageGroup === 'over40';
+      const calc = computeNetSalary(gross, isOver40, state.hasSpouse, state.dependentsCount);
+
+      // 月給と賞与の分配計算
+      let annualBonusGross = 0;
+      let monthlyGross = 0;
+
+      if (state.bonusMode === 'none') {
+        monthlyGross = gross / 12;
+        annualBonusGross = 0;
+      } else if (state.bonusMode === 'months') {
+        const totalBaseUnits = 12 + state.bonusMonths;
+        monthlyGross = gross / totalBaseUnits;
+        annualBonusGross = monthlyGross * state.bonusMonths;
+      } else { // amount
+        annualBonusGross = Math.min(gross, state.bonusAmount);
+        monthlyGross = (gross - annualBonusGross) / 12;
+      }
+
+      // 手取りの月額とボーナス按分
+      const effectiveTakeHomeRate = calc.gross > 0 ? (calc.net / calc.gross) : 0.8;
+      const monthlyNet = monthlyGross * effectiveTakeHomeRate;
+      const bonusPerSessionNet = (annualBonusGross / 2) * effectiveTakeHomeRate;
+
+      // UIへの反映
+      document.getElementById('label-monthly-gross').textContent = `月額換算: 約 ${monthlyGross.toFixed(1)} 万円`;
+      document.getElementById('res-net-yearly').textContent = calc.net.toFixed(1);
+      document.getElementById('badge-take-rate').textContent = `手取り率 約 ${calc.takeHomeRate.toFixed(1)}%`;
+      document.getElementById('res-net-yearly-diff').textContent = `額面から約 ${(calc.gross - calc.net).toFixed(1)} 万円が控除されます`;
+      document.getElementById('res-net-monthly').textContent = monthlyNet.toFixed(1);
+
+      if (annualBonusGross > 0) {
+        document.getElementById('bonus-net-subtext').classList.remove('hidden');
+        document.getElementById('res-net-bonus').textContent = `${bonusPerSessionNet.toFixed(1)} 万円`;
+      } else {
+        document.getElementById('bonus-net-subtext').classList.add('hidden');
+      }
+
+      // 詳細数字
+      document.getElementById('detail-net').textContent = `${calc.net.toFixed(1)} 万円`;
+      document.getElementById('pct-net').textContent = `${calc.takeHomeRate.toFixed(1)}%`;
+      document.getElementById('detail-social').textContent = `${calc.socialTotal.toFixed(1)} 万円`;
+      document.getElementById('pct-social').textContent = `${((calc.socialTotal / calc.gross) * 100 || 0).toFixed(1)}%`;
+      document.getElementById('detail-tax').textContent = `${calc.taxTotal.toFixed(1)} 万円`;
+      document.getElementById('pct-tax').textContent = `${((calc.taxTotal / calc.gross) * 100 || 0).toFixed(1)}%`;
+
+      document.getElementById('chart-center-percent').textContent = `${calc.takeHomeRate.toFixed(1)}%`;
+
+      // アコーディオン内訳
+      document.getElementById('sub-health').textContent = `${calc.health.toFixed(1)} 万円`;
+      document.getElementById('sub-pension').textContent = `${calc.pension.toFixed(1)} 万円`;
+      document.getElementById('sub-emp').textContent = `${calc.employment.toFixed(1)} 万円`;
+      document.getElementById('sub-care').textContent = `${calc.care.toFixed(1)} 万円`;
+      document.getElementById('sub-income-tax').textContent = `${calc.incomeTax.toFixed(1)} 万円`;
+      document.getElementById('sub-resident-tax').textContent = `${calc.residentTax.toFixed(1)} 万円`;
+
+      // スライダー同期
+      document.getElementById('range-gross-income').value = gross;
+
+      // チャート更新
+      updateChart(calc.net, calc.socialTotal, calc.taxTotal);
+    }
+
+    /**
+     * Chart.js のドーナツグラフ更新
+     */
+    function updateChart(net, social, tax) {
+      const ctx = document.getElementById('deductionChart').getContext('2d');
+      const data = {
+        labels: ['手取り', '社会保険料', '税金(所得税+住民税)'],
+        datasets: [{
+          data: [net, social, tax],
+          backgroundColor: ['#4f46e5', '#f59e0b', '#f43f5e'],
+          hoverBackgroundColor: ['#4338ca', '#d97706', '#e11d48'],
+          borderWidth: 0,
+        }]
+      };
+
+      if (deductionChart) {
+        deductionChart.data = data;
+        deductionChart.update();
+      } else {
+        deductionChart = new Chart(ctx, {
+          type: 'doughnut',
+          data: data,
+          options: {
+            cutout: '72%',
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  label: function(context) {
+                    const val = context.raw || 0;
+                    return ` ${context.label}: 約 ${val.toFixed(1)} 万円`;
+                  }
+                }
+              }
+            }
+          }
+        });
+      }
+    }
+
+    /**
+     * 希望手取りからの逆算ロジック (二分探索法で高精度に収束)
+     */
+    function recalculateReverse() {
+      state.targetNet = parseFloat(document.getElementById('input-target-net').value) || 0;
+      state.revBonusMonths = parseFloat(document.getElementById('rev-bonus-months').value) || 0;
+      state.revOver40 = document.getElementById('rev-over40').checked;
+      state.revDependentsTier = parseInt(document.getElementById('rev-dependents-tier').value, 10) || 0;
+
+      // 扶養家族人数のマッピング
+      let hasSpouse = state.revDependentsTier >= 1;
+      let depCount = 0;
+      if (state.revDependentsTier === 2) depCount = 1;
+      if (state.revDependentsTier === 3) depCount = 2;
+
+      // 目標年間手取りを算出
+      let targetYearlyNet = 0;
+      if (state.reverseType === 'monthly') {
+        const totalUnits = 12 + state.revBonusMonths;
+        targetYearlyNet = state.targetNet * totalUnits;
+      } else {
+        targetYearlyNet = state.targetNet;
+      }
+
+      if (targetYearlyNet <= 0) return;
+
+      // 二分探索 (50万円〜5000万円)
+      let low = targetYearlyNet;
+      let high = targetYearlyNet * 2.5;
+      let optimalGross = low;
+
+      for (let i = 0; i < 30; i++) {
+        let mid = (low + high) / 2;
+        let testCalc = computeNetSalary(mid, state.revOver40, hasSpouse, depCount);
+        if (testCalc.net < targetYearlyNet) {
+          low = mid;
+        } else {
+          high = mid;
+        }
+        optimalGross = mid;
+      }
+
+      const finalCalc = computeNetSalary(optimalGross, state.revOver40, hasSpouse, depCount);
+      const units = 12 + state.revBonusMonths;
+      const monthlyGross = optimalGross / units;
+      const bonusGross = monthlyGross * state.revBonusMonths;
+
+      // UI反映
+      document.getElementById('rev-result-gross-year').textContent = Math.round(optimalGross);
+      document.getElementById('rev-box-monthly-gross').textContent = `${monthlyGross.toFixed(1)} 万円`;
+      document.getElementById('rev-box-bonus-gross').textContent = `${bonusGross.toFixed(1)} 万円`;
+      document.getElementById('rev-box-deductions').textContent = `${(optimalGross - finalCalc.net).toFixed(1)} 万円`;
+      document.getElementById('rev-result-gross-month').textContent = `${monthlyGross.toFixed(1)} 万円`;
+
+      const ratio = (optimalGross / targetYearlyNet).toFixed(2);
+      document.getElementById('rev-advice-ratio').textContent = `${ratio}倍`;
+
+      document.getElementById('rev-result-target-label').textContent = state.reverseType === 'monthly' ? '月額' : '年額';
+      document.getElementById('rev-result-target').textContent = `${state.targetNet} 万円`;
+
+      // 早見表を現在の条件（賞与・年齢・扶養）で再計算
+      [20, 25, 30, 40].forEach(n => {
+        const target = n * units;
+        let lo = target, hi = target * 2.5;
+        for (let i = 0; i < 30; i++) {
+          const m = (lo + hi) / 2;
+          if (computeNetSalary(m, state.revOver40, hasSpouse, depCount).net < target) lo = m; else hi = m;
+        }
+        document.getElementById(`milestone-${n}`).textContent = `年収 約${Math.round(hi)}万`;
+      });
+
+      // スライダー同期
+      document.getElementById('range-target-net').value = state.targetNet;
+    }
+
+    /**
+     * 残業代・みなし残業の計算処理
+     */
+    function recalculateOvertime() {
+      state.baseScheduledHours = parseFloat(document.getElementById('ot-base-hours').value) || 160;
+      state.fixedTotalSalary = parseFloat(document.getElementById('ot-fixed-total-salary').value) || 0;
+      state.fixedHours = parseFloat(document.getElementById('ot-fixed-hours').value) || 0;
+      state.fixedActualWorked = parseFloat(document.getElementById('ot-fixed-actual-worked').value) || 0;
+      state.actualBaseSalary = parseFloat(document.getElementById('ot-actual-base-salary').value) || 0;
+      state.regHours = parseFloat(document.getElementById('ot-reg-hours').value) || 0;
+      state.regMinutes = parseFloat(document.getElementById('ot-reg-minutes').value) || 0;
+
+      const otMultiplier = 1.25;
+
+      // 1. 固定残業（みなし残業）の分解
+      // 月給総額 = 基本給 + 固定残業代
+      // 固定残業代 = (基本給 / 所定労働時間) * 1.25 * 固定残業時間
+      // よって: 月給総額 = 基本給 * (1 + 1.25 * 固定時間 / 所定時間)
+      const fixedFactor = 1 + (otMultiplier * state.fixedHours / state.baseScheduledHours);
+      const baseSalaryYen = (state.fixedTotalSalary * 10000) / fixedFactor;
+      const fixedAllowanceYen = (state.fixedTotalSalary * 10000) - baseSalaryYen;
+
+      const hourlyRate = baseSalaryYen / state.baseScheduledHours;
+      const otHourlyRate = hourlyRate * otMultiplier;
+      const otMinuteRate = otHourlyRate / 60;
+
+      // 超過残業の計算
+      const excessHours = Math.max(0, state.fixedActualWorked - state.fixedHours);
+      const excessAllowanceYen = excessHours * otHourlyRate;
+      const grandTotalYen = (state.fixedTotalSalary * 10000) + excessAllowanceYen;
+
+      // UI更新（固定残業）
+      document.getElementById('label-exceed-val').textContent = `月 ${state.fixedActualWorked} 時間実働`;
+      document.getElementById('ot-res-display-total').textContent = state.fixedTotalSalary.toFixed(1);
+      document.getElementById('ot-res-hourly-rate').textContent = `${Math.round(hourlyRate).toLocaleString()} 円/時`;
+      document.getElementById('ot-res-overtime-rate').textContent = `${Math.round(otHourlyRate).toLocaleString()} 円/時`;
+      document.getElementById('ot-res-minute-rate').textContent = otMinuteRate.toFixed(1);
+      document.getElementById('ot-res-base-val').textContent = `${(baseSalaryYen / 10000).toFixed(1)} 万円`;
+      document.getElementById('ot-res-fixed-val').textContent = `${(fixedAllowanceYen / 10000).toFixed(1)} 万円`;
+
+      const basePct = ((baseSalaryYen / (state.fixedTotalSalary * 10000)) * 100).toFixed(1);
+      const fixedPct = (100 - basePct).toFixed(1);
+      document.getElementById('ot-res-base-pct').textContent = `${basePct}%`;
+      document.getElementById('ot-res-fixed-pct').textContent = `${fixedPct}%`;
+      document.getElementById('bar-base').style.width = `${basePct}%`;
+      document.getElementById('bar-fixed').style.width = `${fixedPct}%`;
+
+      document.getElementById('ot-res-exceed-allowance').textContent = `＋${(excessAllowanceYen / 10000).toFixed(1)} 万円`;
+      document.getElementById('ot-res-exceed-sub').textContent = excessHours > 0
+        ? `固定時間を ${excessHours} 時間超過`
+        : `固定残業時間内におさまっています`;
+      document.getElementById('ot-res-grand-total').textContent = `${(grandTotalYen / 10000).toFixed(1)} 万円`;
+
+      // 2. 普通残業手当の計算
+      const regBaseYen = state.actualBaseSalary * 10000;
+      const regHourlyRate = regBaseYen / state.baseScheduledHours;
+      const regOtHourlyRate = regHourlyRate * otMultiplier;
+      const regOtMinuteRate = regOtHourlyRate / 60;
+
+      const totalOtDecimalHours = state.regHours + (state.regMinutes / 60);
+      const regAllowanceYen = totalOtDecimalHours * regOtHourlyRate;
+      const regTotalGrossYen = regBaseYen + regAllowanceYen;
+      const regNetGainYen = regAllowanceYen * 0.8; // 残業代に対する手取りは約8割
+
+      // UI更新（普通残業）
+      document.getElementById('reg-res-allowance').textContent = `${(regAllowanceYen / 10000).toFixed(1)} 万円`;
+      document.getElementById('reg-res-hour-rate').textContent = `${Math.round(regHourlyRate).toLocaleString()} 円`;
+      document.getElementById('reg-res-ot-rate').textContent = `${Math.round(regOtHourlyRate).toLocaleString()} 円`;
+      document.getElementById('reg-res-min-rate').textContent = `${regOtMinuteRate.toFixed(1)} 円/分`;
+      document.getElementById('reg-res-total-gross').textContent = `${(regTotalGrossYen / 10000).toFixed(1)} 万円`;
+      document.getElementById('reg-res-net-gain').textContent = `約 ＋${(regNetGainYen / 10000).toFixed(1)} 万円`;
+    }
+
+    /**
+     * タブ切り替え処理
+     */
+    function switchTab(tabId) {
+      state.activeTab = tabId;
+      const tabs = ['forward', 'reverse', 'overtime'];
+      tabs.forEach(t => {
+        const pane = document.getElementById(`pane-${t}`);
+        const btn = document.getElementById(`tab-btn-${t}`);
+        if (t === tabId) {
+          pane.classList.remove('hidden');
+          btn.classList.add('border-indigo-600', 'text-indigo-600');
+          btn.classList.remove('border-transparent', 'text-slate-600');
+        } else {
+          pane.classList.add('hidden');
+          btn.classList.remove('border-indigo-600', 'text-indigo-600');
+          btn.classList.add('border-transparent', 'text-slate-600');
+        }
+      });
+
+      if (tabId === 'reverse') {
+        recalculateReverse();
+      } else if (tabId === 'overtime') {
+        recalculateOvertime();
+      }
+    }
+
+    /**
+     * 賞与設定モードの切り替え
+     */
+    function toggleBonusMode() {
+      const mode = document.getElementById('bonus-mode').value;
+      const monthsBox = document.getElementById('bonus-months-box');
+      const amountBox = document.getElementById('bonus-amount-box');
+      const note = document.getElementById('bonus-note');
+
+      if (mode === 'months') {
+        monthsBox.classList.remove('hidden');
+        amountBox.classList.add('hidden');
+        note.textContent = '※ 通常は夏冬の年2回支給を前提として試算します';
+      } else if (mode === 'amount') {
+        monthsBox.classList.add('hidden');
+        amountBox.classList.remove('hidden');
+        note.textContent = '※ 年間賞与額面を直接指定して毎月の基本給を逆算します';
+      } else {
+        monthsBox.classList.add('hidden');
+        amountBox.classList.add('hidden');
+        note.textContent = '※ 年俸制など、年収を均等に12分割して支給されます';
+      }
+      recalculateForward();
+    }
+
+    /**
+     * 逆算タイプ（月額 vs 年額）の切り替え
+     */
+    function setReverseType(type) {
+      state.reverseType = type;
+      const btnM = document.getElementById('rev-type-monthly');
+      const btnY = document.getElementById('rev-type-yearly');
+      const label = document.getElementById('label-rev-target');
+      const input = document.getElementById('input-target-net');
+      const range = document.getElementById('range-target-net');
+
+      if (type === 'monthly') {
+        btnM.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-white text-indigo-600 shadow-xs';
+        btnY.className = 'flex-1 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900';
+        label.textContent = '目標の月額手取り';
+        input.value = '30';
+        range.min = '10';
+        range.max = '100';
+        range.value = '30';
+      } else {
+        btnY.className = 'flex-1 py-2 text-xs font-bold rounded-lg bg-white text-indigo-600 shadow-xs';
+        btnM.className = 'flex-1 py-2 text-xs font-semibold rounded-lg text-slate-600 hover:text-slate-900';
+        label.textContent = '目標の年間手取り';
+        input.value = '400';
+        range.min = '150';
+        range.max = '1500';
+        range.value = '400';
+      }
+      recalculateReverse();
+    }
+
+    /**
+     * 残業制度モード（固定残業 vs 実残業）の切り替え
+     */
+    function setOvertimeMode(mode) {
+      state.otMode = mode;
+      const btnFixed = document.getElementById('ot-mode-fixed');
+      const btnActual = document.getElementById('ot-mode-actual');
+      const secFixed = document.getElementById('ot-section-fixed');
+      const secActual = document.getElementById('ot-section-actual');
+      const resFixed = document.getElementById('ot-result-fixed-box');
+      const resActual = document.getElementById('ot-result-actual-box');
+
+      if (mode === 'fixed') {
+        btnFixed.className = 'p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 text-indigo-700 font-bold text-xs flex flex-col items-center gap-1';
+        btnActual.className = 'p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs flex flex-col items-center gap-1';
+        secFixed.classList.remove('hidden');
+        secActual.classList.add('hidden');
+        resFixed.classList.remove('hidden');
+        resActual.classList.add('hidden');
+      } else {
+        btnActual.className = 'p-3 rounded-xl border-2 border-indigo-600 bg-indigo-50/50 text-indigo-700 font-bold text-xs flex flex-col items-center gap-1';
+        btnFixed.className = 'p-3 rounded-xl border-2 border-slate-200 hover:border-slate-300 text-slate-700 font-bold text-xs flex flex-col items-center gap-1';
+        secFixed.classList.add('hidden');
+        secActual.classList.remove('hidden');
+        resFixed.classList.add('hidden');
+        resActual.classList.remove('hidden');
+      }
+      recalculateOvertime();
+    }
+
+    /**
+     * ヘルパー: スライダーと数値ボックスの連動
+     */
+    function syncFromRange(target, val) {
+      if (target === 'gross') {
+        document.getElementById('input-gross-income').value = val;
+        recalculateForward();
+      } else if (target === 'rev') {
+        document.getElementById('input-target-net').value = val;
+        recalculateReverse();
+      }
+    }
+
+    function syncFixedHours(val) {
+      document.getElementById('label-fixed-hours-val').textContent = `${val} 時間`;
+      recalculateOvertime();
+    }
+
+    /**
+     * クイック年収セット
+     */
+    function setYearlyIncome(amount) {
+      document.getElementById('input-gross-income').value = amount;
+      document.getElementById('range-gross-income').value = amount;
+      if (state.activeTab !== 'forward') {
+        switchTab('forward');
+      }
+      recalculateForward();
+    }
+
+    /**
+     * 逆算のクイック目標セット
+     */
+    function setTargetNet(amount) {
+      setReverseType('monthly');
+      document.getElementById('input-target-net').value = amount;
+      document.getElementById('range-target-net').value = amount;
+      recalculateReverse();
+    }
+
+    /**
+     * 扶養人数の増減
+     */
+    function changeDependent(delta) {
+      state.dependentsCount = Math.max(0, Math.min(10, state.dependentsCount + delta));
+      document.getElementById('dep-count-label').textContent = state.dependentsCount;
+      recalculateForward();
+    }
+
+    /**
+     * 試算結果のクリップボードコピー
+     */
+    function copySummaryText() {
+      const gross = state.grossIncome;
+      const net = document.getElementById('res-net-yearly').textContent;
+      const monthlyNet = document.getElementById('res-net-monthly').textContent;
+      const social = document.getElementById('detail-social').textContent;
+      const tax = document.getElementById('detail-tax').textContent;
+
+      const summaryText = `【給与・手取り試算結果】\n額面年収: ${gross}万円\n年間手取り: 約${net}万円\n月額手取り: 約${monthlyNet}万円\n(社会保険料: 約${social} / 税金: 約${tax})\n※手取り・給与シミュレーター調べ`;
+
+      const fallbackCopy = () => {
+        const dummy = document.createElement("textarea");
+        document.body.appendChild(dummy);
+        dummy.value = summaryText;
+        dummy.select();
+        const ok = document.execCommand("copy");
+        document.body.removeChild(dummy);
+        showToast(ok ? "試算結果をクリップボードにコピーしました！" : "コピーできませんでした。手動で選択してください");
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(summaryText)
+          .then(() => showToast("試算結果をクリップボードにコピーしました！"))
+          .catch(fallbackCopy);
+      } else {
+        fallbackCopy();
+      }
+    }
+
+    /**
+     * トースト通知の表示
+     */
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      const msg = document.getElementById('toast-message');
+      msg.textContent = message;
+      toast.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-[-10px]');
+      toast.classList.add('opacity-100', 'translate-y-0');
+
+      setTimeout(() => {
+        toast.classList.remove('opacity-100', 'translate-y-0');
+        toast.classList.add('opacity-0', 'pointer-events-none', 'translate-y-[-10px]');
+      }, 2500);
+    }
+
+    // 初期起動トリガー
+    function init() {
+      recalculateForward();
+      recalculateOvertime();
+    }
+    if (document.readyState === 'complete') init(); else window.addEventListener('load', init);
+  </script>
+</div>
+</body>
+</html>
