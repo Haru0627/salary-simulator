@@ -201,7 +201,7 @@
             <div class="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100">
               <div>
                 <span class="text-sm font-semibold text-slate-700 block">配偶者控除</span>
-                <span class="text-xs text-slate-400">配偶者の年収が103万円以下</span>
+                <span class="text-xs text-slate-400">配偶者の給与年収が136万円以下</span>
               </div>
               <label class="relative inline-flex items-center cursor-pointer">
                 <input type="checkbox" id="has-spouse" onchange="recalculateForward()" class="sr-only peer">
@@ -299,7 +299,7 @@
                   <span class="w-3 h-3 rounded-full bg-amber-500 inline-block"></span>
                   <div>
                     <span class="text-xs font-bold text-amber-950">社会保険料 合計</span>
-                    <span class="text-[10px] text-slate-400 block">健康・年金・雇用・介護</span>
+                    <span class="text-[10px] text-slate-400 block">健康・年金・雇用・介護・子育て支援金</span>
                   </div>
                 </div>
                 <div class="text-right">
@@ -333,7 +333,7 @@
               </summary>
               <div class="mt-3 grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                 <div class="p-2.5 bg-slate-50 rounded-lg">
-                  <span class="text-slate-500 block">健康保険料</span>
+                  <span class="text-slate-500 block">健康保険＋子育て支援金</span>
                   <span id="sub-health" class="font-bold text-slate-800">25.0 万円</span>
                 </div>
                 <div class="p-2.5 bg-slate-50 rounded-lg">
@@ -722,7 +722,7 @@
   <!-- Footer -->
   <footer class="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-400">
     <div class="max-w-7xl mx-auto px-4">
-      <p>※ 本シミュレーション結果は、令和8年（2026年）時点の一般的な社会保険料率（協会けんぽ東京支部目安・厚生年金・雇用保険）および所得税・住民税制に基づく概算です。居住自治体、扶養親族の詳細、各種所得控除等により実際の受給額とは若干異なる場合があります。</p>
+      <p>※ 本シミュレーション結果は、令和8年（2026年）分の所得税（令和8年度税制改正：基礎控除・給与所得控除の引き上げを反映）、同じ年の所得にかかる令和9年度分の住民税、令和8年度の社会保険料率（協会けんぽ東京支部・子ども・子育て支援金・厚生年金・雇用保険）に基づく概算です。特定扶養控除や生命保険料控除などは考慮していません。居住自治体、扶養親族の詳細、各種所得控除等により実際の受給額とは異なる場合があります。</p>
     </div>
   </footer>
 
@@ -786,29 +786,31 @@
 
       const grossYen = gross * 10000;
 
-      // 1. 社会保険料（概算）
-      // 健康保険（協会けんぽ東京 折半率 約 4.99%）
-      const healthRate = 0.0499;
-      // 厚生年金（本人負担 9.15%、上限標準報酬月額65万円考慮）
+      // 1. 社会保険料（概算・令和8年度）
+      // 健康保険（協会けんぽ東京支部 9.85% の折半 4.925%、上限 標準報酬月額139万円・標準賞与年573万円）
+      const healthRate = 0.04925;
+      const healthCappedGrossYen = Math.min(grossYen, 1390000 * 12 + 5730000);
+      // 子ども・子育て支援金（0.23% の折半 0.115%、令和8年4月分〜。健康保険料と同じ上限）
+      const kidsSupportRate = 0.00115;
+      // 厚生年金（本人負担 9.15%、上限 標準報酬月額65万円・標準賞与1回150万円）
       const pensionRate = 0.0915;
       const pensionCappedGrossYen = Math.min(grossYen, 650000 * 12 + 1500000 * 3);
-      // 雇用保険（本人負担 0.6%）
-      const empRate = 0.006;
-      // 介護保険（40歳〜64歳 本人負担 約 0.8%）
-      const careRate = isOver40 ? 0.008 : 0.0;
+      // 雇用保険（一般の事業 本人負担 0.5%、令和8年度）
+      const empRate = 0.005;
+      // 介護保険（40歳〜64歳 1.62% の折半 0.81%）
+      const careRate = isOver40 ? 0.0081 : 0.0;
 
-      const healthYen = grossYen * healthRate;
+      const healthYen = healthCappedGrossYen * (healthRate + kidsSupportRate);
       const pensionYen = pensionCappedGrossYen * pensionRate;
       const empYen = grossYen * empRate;
-      const careYen = grossYen * careRate;
+      const careYen = healthCappedGrossYen * careRate;
       const socialTotalYen = healthYen + pensionYen + empYen + careYen;
 
-      // 2. 給与所得控除
+      // 2. 給与所得控除（令和8年分: 最低保障額 69万円 + 令和8・9年の特例5万円 = 74万円）
+      // 住民税も同じ年の所得にかかる令和9年度分は 74万円 のため、同じ控除額を使う
       let salaryDeductionYen = 0;
-      if (grossYen <= 1625000) {
-        salaryDeductionYen = 550000;
-      } else if (grossYen <= 1800000) {
-        salaryDeductionYen = grossYen * 0.40 - 100000;
+      if (grossYen <= 2200000) {
+        salaryDeductionYen = Math.min(grossYen, 740000);
       } else if (grossYen <= 3600000) {
         salaryDeductionYen = grossYen * 0.30 + 80000;
       } else if (grossYen <= 6600000) {
@@ -819,17 +821,32 @@
         salaryDeductionYen = 1950000; // 上限
       }
 
-      // 給与所得金額
+      // 給与所得金額（＝合計所得金額とみなす）
       const earnedIncomeYen = Math.max(0, grossYen - salaryDeductionYen);
 
       // 3. 人的控除
-      // 基礎控除: 所得税48万円、住民税43万円
-      const baseDeductionIT = 480000;
-      const baseDeductionRT = 430000;
+      // 基礎控除（所得税・令和8年分）: 本則62万円 + 特例加算（489万円以下 42万円 / 655万円以下 5万円）
+      let baseDeductionIT = 0;
+      if (earnedIncomeYen <= 4890000) baseDeductionIT = 1040000;
+      else if (earnedIncomeYen <= 6550000) baseDeductionIT = 670000;
+      else if (earnedIncomeYen <= 23500000) baseDeductionIT = 620000;
+      else if (earnedIncomeYen <= 24000000) baseDeductionIT = 480000;
+      else if (earnedIncomeYen <= 24500000) baseDeductionIT = 320000;
+      else if (earnedIncomeYen <= 25000000) baseDeductionIT = 160000;
+      // 基礎控除（住民税）: 43万円（変更なし）
+      let baseDeductionRT = 0;
+      if (earnedIncomeYen <= 24000000) baseDeductionRT = 430000;
+      else if (earnedIncomeYen <= 24500000) baseDeductionRT = 290000;
+      else if (earnedIncomeYen <= 25000000) baseDeductionRT = 150000;
 
-      // 配偶者控除: 所得税38万円、住民税33万円
-      const spouseDeductionIT = hasSpouse ? 380000 : 0;
-      const spouseDeductionRT = hasSpouse ? 330000 : 0;
+      // 配偶者控除: 所得税38万円・住民税33万円（本人の合計所得900万円超で段階的に縮小、1,000万円超で0）
+      let spouseDeductionIT = 0;
+      let spouseDeductionRT = 0;
+      if (hasSpouse) {
+        if (earnedIncomeYen <= 9000000) { spouseDeductionIT = 380000; spouseDeductionRT = 330000; }
+        else if (earnedIncomeYen <= 9500000) { spouseDeductionIT = 260000; spouseDeductionRT = 220000; }
+        else if (earnedIncomeYen <= 10000000) { spouseDeductionIT = 130000; spouseDeductionRT = 110000; }
+      }
 
       // 扶養控除（一般16歳以上）: 1人あたり所得税38万、住民税33万
       const depDeductionIT = depCount * 380000;
