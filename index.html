@@ -136,7 +136,7 @@
             <div class="relative rounded-xl shadow-inner bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 flex items-center px-4 py-2.5">
               <input type="number" id="input-gross-income" value="500" min="50" max="5000" step="10"
                 class="w-full bg-transparent font-bold text-xl text-slate-800 outline-none" oninput="recalculateForward()">
-              <span class="text-slate-500 font-semibold text-sm ml-2">万円</span>
+              <span class="text-slate-500 font-semibold text-sm ml-2 whitespace-nowrap">万円</span>
             </div>
             <input type="range" id="range-gross-income" min="100" max="2000" step="10" value="500"
               class="w-full custom-range mt-2 cursor-pointer" oninput="syncFromRange('gross', this.value)">
@@ -144,8 +144,8 @@
 
           <!-- Bonus Breakdown Mode -->
           <div class="p-4 bg-slate-50 rounded-xl border border-slate-100 space-y-3 mb-5">
-            <div class="flex items-center justify-between">
-              <label class="text-sm font-semibold text-slate-700">賞与（ボーナス）の設定</label>
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <label for="bonus-mode" class="text-sm font-semibold text-slate-700 whitespace-nowrap">賞与（ボーナス）の設定</label>
               <select id="bonus-mode" onchange="toggleBonusMode()" class="text-xs bg-white border border-slate-300 rounded-lg px-2.5 py-1 text-slate-700 font-medium outline-none">
                 <option value="months">月給換算 (○ヶ月分)</option>
                 <option value="amount">年間ボーナス額面 (万円)</option>
@@ -155,17 +155,17 @@
 
             <!-- Bonus by Months -->
             <div id="bonus-months-box" class="flex items-center justify-between gap-3">
-              <span class="text-xs text-slate-600 font-medium">年間賞与月数:</span>
+              <span class="text-xs text-slate-600 font-medium whitespace-nowrap">年間賞与月数:</span>
               <div class="flex items-center gap-2">
                 <input type="number" id="bonus-months" value="2.0" step="0.5" min="0" max="12"
-                  class="w-20 px-3 py-1.5 text-center font-bold text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500" oninput="recalculateForward()">
-                <span class="text-xs text-slate-500">ヶ月分</span>
+                  class="w-16 sm:w-20 px-2 sm:px-3 py-1.5 text-center font-bold text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500" oninput="recalculateForward()">
+                <span class="text-xs text-slate-500 whitespace-nowrap">ヶ月分</span>
               </div>
             </div>
 
             <!-- Bonus by Fixed Amount -->
             <div id="bonus-amount-box" class="hidden flex items-center justify-between gap-3">
-              <span class="text-xs text-slate-600 font-medium">年間賞与額面:</span>
+              <span class="text-xs text-slate-600 font-medium whitespace-nowrap">年間賞与額面:</span>
               <div class="flex items-center gap-2">
                 <input type="number" id="bonus-fixed-amount" value="80" step="5" min="0" max="2000"
                   class="w-24 px-3 py-1.5 text-center font-bold text-sm bg-white border border-slate-200 rounded-lg outline-none focus:border-indigo-500" oninput="recalculateForward()">
@@ -388,7 +388,7 @@
             <div class="relative rounded-xl shadow-inner bg-slate-50 border border-slate-200 focus-within:border-indigo-500 focus-within:ring-2 focus-within:ring-indigo-100 flex items-center px-4 py-2.5">
               <input type="number" id="input-target-net" value="30" min="10" max="200" step="1"
                 class="w-full bg-transparent font-bold text-xl text-slate-800 outline-none" oninput="recalculateReverse()">
-              <span class="text-slate-500 font-semibold text-sm ml-2">万円</span>
+              <span class="text-slate-500 font-semibold text-sm ml-2 whitespace-nowrap">万円</span>
             </div>
             <!-- Range slider for reverse -->
             <input type="range" id="range-target-net" min="10" max="100" step="1" value="30"
@@ -540,7 +540,7 @@
               <div class="relative rounded-xl shadow-inner bg-slate-50 border border-slate-200 focus-within:border-indigo-500 flex items-center px-3 py-2">
                 <input type="number" id="ot-fixed-total-salary" value="35" min="15" max="150" step="1"
                   class="w-full bg-transparent font-bold text-lg text-slate-800 outline-none" oninput="recalculateOvertime()">
-                <span class="text-slate-500 font-bold text-xs ml-2">万円/月</span>
+                <span class="text-slate-500 font-bold text-xs ml-2 whitespace-nowrap">万円/月</span>
               </div>
             </div>
 
@@ -584,7 +584,7 @@
               <div class="relative rounded-xl shadow-inner bg-slate-50 border border-slate-200 focus-within:border-indigo-500 flex items-center px-3 py-2">
                 <input type="number" id="ot-actual-base-salary" value="28" min="10" max="150" step="1"
                   class="w-full bg-transparent font-bold text-lg text-slate-800 outline-none" oninput="recalculateOvertime()">
-                <span class="text-slate-500 font-bold text-xs ml-2">万円/月</span>
+                <span class="text-slate-500 font-bold text-xs ml-2 whitespace-nowrap">万円/月</span>
               </div>
             </div>
 
